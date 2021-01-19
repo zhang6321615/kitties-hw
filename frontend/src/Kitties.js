@@ -19,10 +19,45 @@ export default function Kitties (props) {
 
   const fetchKittyCnt = () => {
     /* TODO: 加代码，从 substrate 端读取数据过来 */
+    let unsubscribe;
+    api.query.kittiesModule.kittiesCount(get_count => {
+        console.log("kittie_count:", get_count.toString())
+        setKittyCnt(get_count.toNumber());
+    }).then(unsub => {
+        unsubscribe = unsub;
+    }).catch(console.error);
+
+    return () => unsubscribe && unsubscribe();
   };
 
   const fetchKitties = () => {
     /* TODO: 加代码，从 substrate 端读取数据过来 */
+    let unsubscribe;
+
+    const all_index = Array.from(Array(kittyCnt), (v, k) => k);
+
+    api.query.kittiesModule.kitties.multi(all_index, all_kitties => {
+        api.query.kittiesModule.kittyOwners.multi(all_index, all_owner => {
+            api.query.kittiesModule.kittyPrices.multi(all_index, all_price => {
+                all_kitties.forEach(function (item, index, arr) {
+                    arr[index].id = index;
+                    arr[index].dna = item.unwrap();
+                    arr[index].owner = keyring.encodeAddress(all_owner[index].unwrap());
+                    arr[index].price =  all_price[index].isEmpty?'无报价':all_price[index].unwrap();
+                })
+                // console.log("all_kitties:", all_kitties);
+                setKitties(all_kitties);
+            }).then(unsub => {
+                unsubscribe = unsub;
+            }).catch(console.error);
+        }).then(unsub => {
+            unsubscribe = unsub;
+        }).catch(console.error);
+    }).then(unsub => {
+        unsubscribe = unsub;
+    }).catch(console.error);
+
+    return () => unsubscribe && unsubscribe();
   };
 
   const populateKitties = () => {
@@ -34,12 +69,12 @@ export default function Kitties (props) {
   useEffect(populateKitties, [kittyDNAs, kittyOwners]);
 
   return <Grid.Column width={16}>
-    <h1>小毛孩</h1>
+    <h1>小猫</h1>
     <KittyCards kitties={kitties} accountPair={accountPair} setStatus={setStatus}/>
     <Form style={{ margin: '1em 0' }}>
       <Form.Field style={{ textAlign: 'center' }}>
         <TxButton
-          accountPair={accountPair} label='创建小毛孩' type='SIGNED-TX' setStatus={setStatus}
+          accountPair={accountPair} label='创建小猫' type='SIGNED-TX' setStatus={setStatus}
           attrs={{
             palletRpc: 'kittiesModule',
             callable: 'create',
